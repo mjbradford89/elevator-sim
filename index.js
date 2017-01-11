@@ -3,6 +3,7 @@ const prompt = require('prompt');
 
 const MIN_FLOOR = 1;
 const MAX_FLOOR = 10;
+const SERVICE_AFTER = 100;
 
 class ElevatorCar extends EventEmitter {
 	constructor(floor, carName) {
@@ -18,6 +19,7 @@ class ElevatorCar extends EventEmitter {
 		this.floorsPassed = 0;
 		this.tripsMade = 0;
 		this.moving = false;
+		this.beingServiced = false;
 	}
 
 	//go to the desired floor
@@ -44,6 +46,9 @@ class ElevatorCar extends EventEmitter {
 			instance.emit('tripMade', {
 				tripsMade: instance.tripsMade
 			});
+			if (instance.tripsMade >= 100) {
+				instance.beingServiced = true;
+			}
 			resolve(instance);
 		});
 		return instance.promise;
@@ -93,14 +98,28 @@ class ElevatorCarOperator {
 	callCar(currentFloor) {
 		var instance = this;
 		return new Promise(function(resolve, reject) {
-			var shortestDistance = MAX_FLOOR,
-				targetCar = instance.cars[0];
+			var shortestDistance = MAX_FLOOR;
 
+			//check if a car is already at the floor.
+			var targetCar = instance.cars.filter(
+				function(car) {
+					return car.floor === currentFloor;
+				}
+			);
+
+			if (targetCar.length) {
+
+				resolve(targetcar);
+			}
+
+			//if there is no car at this floor, find one closest or on it's way past
 			for (var i in instance.cars) {
 				var car = instance.cars[i];
+				if (car.beingServiced) {
+					continue;
+				}
 				if ((currentFloor < car.floor && car.direction === 'down') ||
-					(currentFloor > car.floor && car.direction === 'up') ||
-					(car.floor === currentFloor)) {
+					(currentFloor > car.floor && car.direction === 'up')) {
 					targetCar = car;
 					break;
 				}
@@ -112,16 +131,13 @@ class ElevatorCarOperator {
 			}
 
 			if (targetCar.moving) {
-				console.log(targetCar.name + " is already on its' way to get you!");
 				targetCar.promise.then(function() {
-					console.log(targetCar.name + " is here to pick you up!");
 					targetCar.openDoor();
 					resolve(targetCar);
 				});
 			}
 
 			targetCar.goToFloor(currentFloor).then(function() {
-				console.log(targetCar.name + " is here to pick you up!");
 				targetCar.openDoor();
 				resolve(targetCar);
 			});
@@ -133,8 +149,10 @@ var operator = new ElevatorCarOperator();
 
 function awaitUser() {
 	prompt.start();
+	console.log('Please enter your current floor and destination floor.');
 	prompt.get(['currentFloor', 'destinationFloor'], function(err, result) {
 		operator.callCar(result.currentFloor).then(function(car) {
+			console.log("Your car is here! Its' name is " + car.name + ".  Now going to your destination floor.");
 			car.goToFloor(result.destinationFloor).then(function(car) {
 				console.log('You have arrived at floor ' + car.floor + '.');
 			});
