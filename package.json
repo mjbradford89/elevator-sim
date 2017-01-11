@@ -1,0 +1,8 @@
+{
+  "name": "elevator",
+  "version": "1.0.0",
+  "description": "elevator simulation",
+  "main": "index.js",
+  "author": "",
+  "license": "ISC"
+}
