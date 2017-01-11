@@ -1,4 +1,5 @@
 const EventEmitter = require('events');
+const Prompt = require('prompt');
 
 const MIN_FLOOR = 1;
 const MAX_FLOOR = 10;
@@ -28,7 +29,7 @@ class ElevatorCar extends EventEmitter {
 		}
 		instance.moving = true;
 		instance.direction = floor < instance.floor ? 'down' : 'up';
-		return new Promise(function(resolve, reject){
+		instance.promise = new Promise(function(resolve, reject){
 			while (instance.floor != floor) {
 				if (instance.floor < floor) {
 					instance.upFloor();
@@ -44,6 +45,7 @@ class ElevatorCar extends EventEmitter {
 			});
 			resolve();
 		});
+		return instance.promise;
 	}
 
 	//calculate the distance to the desired floor
@@ -84,18 +86,24 @@ class ElevatorCar extends EventEmitter {
 
 class ElevatorCarOperator {
 	constructor() {
-		this.cars = [new ElevatorCar(1, 'Andy'), new ElevatorCar(5, 'Woody'), new ElevatorCar(10, 'Buzz')];
+		this.cars = [/*new ElevatorCar(1, 'Andy'), new ElevatorCar(5, 'Woody'),*/ new ElevatorCar(1000, 'Buzz')];
 	}
 
 	callCar(currentFloor) {
 		var shortestDistance = MAX_FLOOR,
 			targetCar = this.cars[0];
 
-		for (car in cars) {
+		for (var i in this.cars) {
+			var car = this.cars[i];
 			if ((currentFloor < car.floor && car.direction === 'down') ||
 				(currentFloor > car.floor && car.direction === 'up') ||
 				(car.floor === currentFloor)) {
-
+				if (car.moving) {
+					console.log('found moving car');
+				}
+				if (car.floor === currentFloor) {
+					console.log('found same floor');
+				}
 				targetCar = car;
 				break;
 			}
@@ -107,21 +115,19 @@ class ElevatorCarOperator {
 		}
 
 		if (targetCar.moving) {
-			console.log(targetCar.name + " is on its' way to get you!");
-		} else {
-			return targetCar.goToFloor(currentFloor).then(function() {
+			console.log(targetCar.name + " is already on its' way to get you!");
+			return targetCar.promise.then(function() {
 				console.log(targetCar.name + " is here to pick you up!");
 			});
 		}
 
+		return targetCar.goToFloor(currentFloor).then(function() {
+			console.log(targetCar.name + " is here to pick you up!");
+		});
 	}
 }
 
+var operator = new ElevatorCarOperator();
 
-carA.on('floorChanged', function(event) {
-	console.log('floorChanged:' + event.newFloor);
-});
-
-carA.goToFloor(10).then(function() {
-	console.log('done');
-});
+operator.callCar(2);
+operator.callCar(1);
