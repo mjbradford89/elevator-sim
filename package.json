@@ -4,5 +4,8 @@
   "description": "elevator simulation",
   "main": "index.js",
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+  	"prompt":"1.0.0"
+  }
 }

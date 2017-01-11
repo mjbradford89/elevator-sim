@@ -1,5 +1,5 @@
 const EventEmitter = require('events');
-const Prompt = require('prompt');
+const prompt = require('prompt');
 
 const MIN_FLOOR = 1;
 const MAX_FLOOR = 10;
@@ -27,6 +27,7 @@ class ElevatorCar extends EventEmitter {
 		if (floor < MIN_FLOOR || floor > MAX_FLOOR) {
 			return;
 		}
+		instance.closeDoor();
 		instance.moving = true;
 		instance.direction = floor < instance.floor ? 'down' : 'up';
 		instance.promise = new Promise(function(resolve, reject){
@@ -43,7 +44,7 @@ class ElevatorCar extends EventEmitter {
 			instance.emit('tripMade', {
 				tripsMade: instance.tripsMade
 			});
-			resolve();
+			resolve(instance);
 		});
 		return instance.promise;
 	}
@@ -86,48 +87,59 @@ class ElevatorCar extends EventEmitter {
 
 class ElevatorCarOperator {
 	constructor() {
-		this.cars = [/*new ElevatorCar(1, 'Andy'), new ElevatorCar(5, 'Woody'),*/ new ElevatorCar(1000, 'Buzz')];
+		this.cars = [new ElevatorCar(1, 'Andy'), new ElevatorCar(5, 'Woody'), new ElevatorCar(10, 'Buzz')];
 	}
 
 	callCar(currentFloor) {
-		var shortestDistance = MAX_FLOOR,
-			targetCar = this.cars[0];
+		var instance = this;
+		return new Promise(function(resolve, reject) {
+			var shortestDistance = MAX_FLOOR,
+				targetCar = instance.cars[0];
 
-		for (var i in this.cars) {
-			var car = this.cars[i];
-			if ((currentFloor < car.floor && car.direction === 'down') ||
-				(currentFloor > car.floor && car.direction === 'up') ||
-				(car.floor === currentFloor)) {
-				if (car.moving) {
-					console.log('found moving car');
+			for (var i in instance.cars) {
+				var car = instance.cars[i];
+				if ((currentFloor < car.floor && car.direction === 'down') ||
+					(currentFloor > car.floor && car.direction === 'up') ||
+					(car.floor === currentFloor)) {
+					targetCar = car;
+					break;
 				}
-				if (car.floor === currentFloor) {
-					console.log('found same floor');
+				var distanceToFloor = car.distanceToFloor(currentFloor);
+				if (distanceToFloor < shortestDistance) {
+					shortestDistance = car.distanceToFloor(currentFloor);
+					targetCar = car;
 				}
-				targetCar = car;
-				break;
 			}
-			var distanceToFloor = car.distanceToFloor(currentFloor);
-			if (distanceToFloor < shortestDistance) {
-				shortestDistance = car.distanceToFloor(currentFloor);
-				targetCar = car;
-			}
-		}
 
-		if (targetCar.moving) {
-			console.log(targetCar.name + " is already on its' way to get you!");
-			return targetCar.promise.then(function() {
+			if (targetCar.moving) {
+				console.log(targetCar.name + " is already on its' way to get you!");
+				targetCar.promise.then(function() {
+					console.log(targetCar.name + " is here to pick you up!");
+					targetCar.openDoor();
+					resolve(targetCar);
+				});
+			}
+
+			targetCar.goToFloor(currentFloor).then(function() {
 				console.log(targetCar.name + " is here to pick you up!");
+				targetCar.openDoor();
+				resolve(targetCar);
 			});
-		}
-
-		return targetCar.goToFloor(currentFloor).then(function() {
-			console.log(targetCar.name + " is here to pick you up!");
 		});
 	}
 }
 
 var operator = new ElevatorCarOperator();
 
-operator.callCar(2);
-operator.callCar(1);
+function awaitUser() {
+	prompt.start();
+	prompt.get(['currentFloor', 'destinationFloor'], function(err, result) {
+		operator.callCar(result.currentFloor).then(function(car) {
+			car.goToFloor(result.destinationFloor).then(function(car) {
+				console.log('You have arrived at floor ' + car.floor + '.');
+			});
+		}).then(awaitUser);
+	});
+};
+
+awaitUser();
